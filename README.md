@@ -2,7 +2,6 @@
 title: "DNT-IVB mapping Plugin – Documentation"
 author: "Luiz Ladeira"
 date: "2026_07_13"
-output: html_document
 ---
 
 # Introduction
