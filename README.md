@@ -152,6 +152,12 @@ repository root as `plugin.js` for direct loading in MINERVA.
 -   Repurposed from the Cardiotox AOP / KE Methods Mapper plugin, itself based
     on previous development by Hesam Korki - <https://github.com/HesamKorki>
 
+-   The compact expandable-row layout (narrow primary columns with the
+    remaining fields in a per-row detail panel, to save horizontal space) is
+    adapted from the MINERVA **Adverse Drug Reactions** (`drug-reactions`)
+    plugin -
+    <https://gitlab.com/uniluxembourg/lcsb/BioCore/minerva/plugins/drug-reactions>
+
 ------------------------------------------------------------------------
 
 # Licencing

@@ -8,7 +8,14 @@
  * matched to a BioEntity in the map by its numeric element id, and the
  * corresponding element is highlighted / focused when the row is clicked.
  *
- * Repurposed from the Cardiotox AOP / KE Methods Mapper plugin.
+ * Attribution:
+ *  - Repurposed from the Cardiotox AOP / KE Methods Mapper plugin, itself
+ *    based on previous development by Hesam Korki
+ *    (https://github.com/HesamKorki).
+ *  - The compact expandable-row layout (narrow primary columns with the
+ *    remaining fields in a per-row detail panel) is adapted from the MINERVA
+ *    Adverse Drug Reactions (drug-reactions) plugin
+ *    (https://gitlab.com/uniluxembourg/lcsb/BioCore/minerva/plugins/drug-reactions).
  */
 
 let $ = require("jquery");
