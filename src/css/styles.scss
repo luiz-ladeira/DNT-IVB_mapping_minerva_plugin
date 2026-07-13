@@ -1,0 +1,333 @@
+/**
+ * DNT-IVB mapping plugin styles
+ * A cleaner, higher-contrast look than the cardiotox plugin.
+ */
+
+$accent: #2563eb;
+$accent-dark: #1d4ed8;
+$pink: #d6336c;
+$ink: #1f2933;
+$muted: #6b7280;
+$border: #e2e8f0;
+$bg: #f8fafc;
+$stripe: #f1f5f9;
+$hover: #e8f0fe;
+$active: #dbe7ff;
+
+.dnt-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 10px 10px 14px;
+  background: $bg;
+  color: $ink;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 0.8rem;
+  // The container fills the panel but never scrolls itself — only the table
+  // wrapper scrolls (single scrollbar). This prevents a second, outer
+  // scrollbar appearing alongside the table's own.
+  overflow: hidden;
+
+  * {
+    box-sizing: border-box;
+  }
+}
+
+/* ---- Header ---- */
+.dnt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 2px solid $accent;
+}
+
+.dnt-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.dnt-title-main {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: $ink;
+}
+
+.dnt-badge-version {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #fff;
+  background: $accent;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.dnt-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* ---- Buttons ---- */
+.dnt-btn {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.dnt-btn-primary {
+  color: #fff;
+  background: $accent;
+  border-color: $accent;
+
+  &:hover {
+    background: $accent-dark;
+    border-color: $accent-dark;
+  }
+}
+
+.dnt-btn-ghost {
+  color: $accent;
+  background: #fff;
+  border-color: $border;
+
+  &:hover {
+    background: $hover;
+    border-color: $accent;
+  }
+}
+
+/* ---- Controls ---- */
+.dnt-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.dnt-search {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  color: $ink;
+  background: #fff;
+  border: 1px solid $border;
+  border-radius: 6px;
+  outline: none;
+
+  &:focus {
+    border-color: $accent;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+  }
+}
+
+.dnt-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dnt-filter {
+  flex: 1 1 auto;
+  min-width: 120px;
+  max-width: 100%;
+  padding: 5px 8px;
+  font-size: 0.72rem;
+  color: $ink;
+  background: #fff;
+  border: 1px solid $border;
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+
+  &:focus {
+    border-color: $accent;
+  }
+}
+
+/* ---- Count line ---- */
+.dnt-count {
+  font-size: 0.7rem;
+  color: $muted;
+  margin: 2px 0 6px;
+
+  .dnt-count-val,
+  .dnt-mapped-val {
+    font-weight: 700;
+    color: $ink;
+  }
+}
+
+/* ---- Table ---- */
+.dnt-table-wrapper {
+  flex: 1 1 auto;
+  min-height: 0;
+  // Scroll internally on BOTH axes when the table is larger than the space.
+  overflow: auto;
+  border: 1px solid $border;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.dnt-table {
+  width: 100%;
+  // Only a few narrow primary columns are shown; the rest live in the
+  // expandable detail panel, so the table fits the panel width with no
+  // horizontal scrollbar (table-layout:fixed keeps columns from overflowing).
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: $ink;
+    color: #fff;
+    font-weight: 600;
+    text-align: left;
+    padding: 7px 8px;
+    white-space: nowrap;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+
+    &:last-child {
+      border-right: none;
+    }
+  }
+
+  .dnt-th-pin {
+    width: 22px;
+    padding: 7px 4px;
+  }
+
+  .dnt-th-exp {
+    width: 20px;
+    padding: 7px 2px;
+  }
+
+  tbody td {
+    padding: 6px 8px;
+    border-bottom: 1px solid $border;
+    vertical-align: top;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  // Zebra-stripe only the main rows (detail rows interleave, so nth-child
+  // can't be used). Applied via the .dnt-main-row class with a counter.
+  tbody tr.dnt-main-row.dnt-stripe {
+    background: $stripe;
+  }
+
+  tbody tr.dnt-main-row.dnt-clickable {
+    cursor: pointer;
+
+    &:hover {
+      background: $hover;
+    }
+  }
+
+  tbody tr.dnt-main-row.dnt-active {
+    background: $active !important;
+    box-shadow: inset 3px 0 0 $accent;
+  }
+
+  tbody tr.dnt-main-row[data-mapped="0"] {
+    color: $muted;
+  }
+
+  tbody tr.dnt-main-row.dnt-expanded {
+    background: $hover;
+  }
+}
+
+// ----- Expand toggle + detail panel -----
+.dnt-exp-cell {
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dnt-exp-icon {
+  color: $muted;
+  font-size: 0.6rem;
+
+  &:hover {
+    color: $accent;
+  }
+}
+
+.dnt-detail-row td {
+  padding: 0 !important;
+  background: #f7f9fc;
+  border-bottom: 1px solid $border;
+}
+
+.dnt-detail-panel {
+  padding: 8px 12px 10px 34px;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.dnt-detail-item + .dnt-detail-item {
+  margin-top: 3px;
+}
+
+.dnt-detail-label {
+  font-weight: 600;
+  color: $ink;
+}
+
+.dnt-detail-val {
+  color: #1f2933;
+}
+
+.dnt-detail-empty {
+  color: $muted;
+}
+
+.dnt-pin-cell {
+  text-align: center;
+  font-size: 0.7rem;
+  cursor: default;
+}
+
+.dnt-pin-mapped {
+  color: #2f9e44; // green filled dot: row mapped to a map element
+}
+
+.dnt-pin-off {
+  color: #e03131; // red filled dot: row NOT mapped to the map
+}
+
+.dnt-cell-id {
+  font-variant-numeric: tabular-nums;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.7rem;
+  color: $muted;
+}
+
+.dnt-doi {
+  color: $accent;
+  text-decoration: none;
+  font-weight: 500;
+
+  &:hover {
+    text-decoration: underline;
+    color: $accent-dark;
+  }
+}
+
