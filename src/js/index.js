@@ -342,28 +342,45 @@ function fillPanelHeight(rootEl) {
   try {
     const mount = rootEl.parentElement || rootEl;
 
-    // A zero-height marker left IN THE FLOW at the plugin's start position.
-    // The container itself goes out of flow (position: fixed), so it can no
-    // longer report where the plugin begins; the marker can. It moves up when
-    // the host header is hidden and tracks the drawer on window resize, so
-    // reading its rect each recompute gives the live top / left / width.
+    // The drawer box that stays IN THE FLOW and keeps its full width even
+    // after our container leaves the flow — we read left/width from it. (If we
+    // read width from the container or the mount once fixed, the mount
+    // collapses to width 0 and the panel becomes invisible.)
+    const drawer =
+      $(mount).closest(".tab-content").get(0) || mount.parentElement || mount;
+
+    // A zero-height marker left IN THE FLOW at the plugin's start position, so
+    // we always know where the plugin content begins (survives the header-hide
+    // shift and window resizes) even though the container itself is fixed.
     if (!renderUI._anchorEl) {
       const a = document.createElement("div");
       a.className = "dnt-anchor";
       a.style.cssText = "height:0;margin:0;padding:0;border:0;width:100%;";
       mount.insertBefore(a, mount.firstChild);
       renderUI._anchorEl = a;
-      // Record the container's originals so restoreHost() reverts them.
       ["position", "top", "left", "width", "height", "zIndex"].forEach((p) =>
         recordHostStyle(rootEl, p)
       );
     }
 
-    const a = renderUI._anchorEl.getBoundingClientRect();
-    const top = a.top;
-    const left = a.left;
-    const width = a.width || rootEl.getBoundingClientRect().width;
-    const height = Math.max(160, window.innerHeight - top - PANEL_BOTTOM_GAP);
+    const top = renderUI._anchorEl.getBoundingClientRect().top;
+    const dr = drawer.getBoundingClientRect();
+    const left = dr.left;
+    const width = dr.width;
+    const height = window.innerHeight - top - PANEL_BOTTOM_GAP;
+
+    // Guard: if the geometry is implausible (drawer not laid out yet, absurd
+    // top/height), do NOT go fixed — leave the container in natural flow so the
+    // plugin always renders. A visible panel with a small gap beats a blank one.
+    if (width < 120 || height < 160 || top < 0 || !isFinite(top)) {
+      rootEl.style.position = "";
+      rootEl.style.top = "";
+      rootEl.style.left = "";
+      rootEl.style.width = "";
+      rootEl.style.height = "";
+      rootEl.style.zIndex = "";
+      return;
+    }
 
     // Overlay: lift the panel out of the flow and stretch it from the plugin's
     // start down to the bottom of the viewport, covering MINERVA's blank strip.
