@@ -62,7 +62,7 @@ require("./minervaAPI");
 
 // ===== Configuration =====
 var PLUGIN_NAME = "DNT-IVB mapping";
-var PLUGIN_VERSION = "0.2";
+var PLUGIN_VERSION = "0.3";
 var PLUGIN_URL = "https://raw.githubusercontent.com/luiz-ladeira/DNT-IVB_mapping_minerva_plugin/master/plugin.js";
 var SPREADSHEET_ID = "1bxuDsq2Wbf6ijzaOeDhW0u8qvhEnDqqFsVPDzrWhrbE";
 var SHEET_TAB = "data";
@@ -102,6 +102,29 @@ var HIGHLIGHT_COLOR = "#d6336c";
 // hide it via a best-effort DOM tweak that fails silently if MINERVA's
 // layout differs. Set to false to leave MINERVA's header untouched.
 var HIDE_HOST_CHROME = true;
+
+// Record of every inline-style change we make to MINERVA's own DOM (host
+// chrome we hide, the .tab-content we position). Restored verbatim when the
+// plugin is unloaded, so closing the plugin leaves MINERVA exactly as it was
+// and its panel can collapse normally.
+var hostMutations = [];
+function recordHostStyle(el, prop) {
+  hostMutations.push({
+    el: el,
+    prop: prop,
+    prev: el.style[prop]
+  });
+}
+function restoreHost() {
+  hostMutations.forEach(function (m) {
+    try {
+      m.el.style[m.prop] = m.prev;
+    } catch (e) {
+      /* element may be gone; ignore */
+    }
+  });
+  hostMutations = [];
+}
 
 // ===== Utils =====
 function isEmptyToken(v) {
@@ -325,10 +348,12 @@ function hideHostChrome(myEl) {
     }
     var target = header && !header.contains(myEl) ? header : btn.parentElement;
     if (target && !target.contains(myEl)) {
+      recordHostStyle(target, "display");
       target.style.display = "none";
       return true;
     }
     // Fallback: at least hide the button itself.
+    recordHostStyle(btn, "display");
     btn.style.display = "none";
     return true;
   } catch (e) {
@@ -338,41 +363,35 @@ function hideHostChrome(myEl) {
 }
 
 /**
- * Make the panel fill MINERVA's plugin space.
+ * Make the panel fill MINERVA's plugin space with no dead gap below.
  *
- * MINERVA hands each plugin a mount element inside Bootstrap `.tab-pane` /
- * `.tab-content` wrappers that are `height: auto`. A plain `height: 100%` on
- * our container therefore collapses (its parent has no resolved height),
- * leaving dead space below. The fix is to make the `height: 100%` chain
- * continuous: walk up from our container setting `height: 100%` on every
- * content-sized ancestor until we reach the first ancestor that already has a
- * bounded layout height (MINERVA's scroll panel). From there, the container's
- * CSS `height: 100%` + flex column fills the panel and adapts on resize with
- * no pixel measurement.
- *
- * Best-effort and idempotent; never throws.
+ * MINERVA absolutely-positions the plugin mount element inside its Bootstrap
+ * `.tab-content` drawer. Without a positioned `.tab-content`, the mount is
+ * sized against a further-out ancestor and overshoots, leaving blank space
+ * under the table. Giving `.tab-content` `position: relative` makes it the
+ * containing block, so the mount fills exactly the panel and our container's
+ * CSS `height: 100%` + flex column resolves against it. This is the same
+ * technique used by MINERVA's own drug-reactions plugin; flexbox then adapts
+ * on resize with no pixel measurement. The mutation is recorded and restored
+ * on unload. Best-effort and idempotent; never throws.
  *
  * @param {HTMLElement} rootEl - the plugin's own container element.
  */
 function fillPanelHeight(rootEl) {
   try {
-    var node = rootEl;
-    var hops = 0;
-    while (node && node !== document.body && hops < 14) {
-      node.style.height = "100%";
-      node.style.minHeight = "0";
-      node.style.boxSizing = "border-box";
-      var parent = node.parentElement;
-      if (!parent || parent === document.body) break;
-      var pcs = window.getComputedStyle(parent);
-      var prect = parent.getBoundingClientRect();
-      // Stop once the parent is a real bounded container: it clips/scrolls its
-      // overflow AND has a resolved height no taller than the viewport. That
-      // parent keeps its own height; our chain fills it exactly.
-      var boundedScroll = /(auto|scroll|hidden|overlay)/.test(pcs.overflowY) && prect.height > 120 && prect.height <= window.innerHeight + 1;
-      if (boundedScroll) break;
-      node = parent;
-      hops += 1;
+    // rootEl is .dnt-container; its parent is MINERVA's mount element.
+    var mount = rootEl.parentElement || rootEl;
+    var tabContent = $(mount).closest(".tab-content").get(0);
+    if (tabContent) {
+      if (window.getComputedStyle(tabContent).position === "static") {
+        recordHostStyle(tabContent, "position");
+        tabContent.style.position = "relative";
+      }
+    } else {
+      // Fallback: no .tab-content found — at least give the mount a height so
+      // the container's height:100% has something to resolve against.
+      recordHostStyle(mount, "height");
+      mount.style.height = "100%";
     }
   } catch (e) {
     console.warn("fillPanelHeight skipped:", e);
@@ -682,6 +701,25 @@ function register() {
     pluginVersion: PLUGIN_VERSION,
     pluginUrl: PLUGIN_URL
   });
+
+  // On close, undo every change we made to MINERVA's own DOM (hidden host
+  // chrome, the positioned .tab-content) and drop our resize handler. Without
+  // this, hiding the host chrome leaves MINERVA unable to collapse its panel,
+  // so closing the only open plugin leaves a blank panel behind.
+  try {
+    if (pluginData.events && pluginData.events.addListener) {
+      pluginData.events.addListener("onPluginUnload", function () {
+        restoreHost();
+        deHighlightAll();
+        if (renderUI._resizeHandler) {
+          window.removeEventListener("resize", renderUI._resizeHandler);
+          renderUI._resizeHandler = null;
+        }
+      });
+    }
+  } catch (e) {
+    console.warn("onPluginUnload registration skipped:", e);
+  }
   var baseUrl = minerva.project.data.getApiUrls().baseApiUrl;
   var projectId = minerva.project.data.getProjectId();
   Promise.all([fetchSheetData(), fetch("".concat(baseUrl, "/projects/").concat(projectId, "/models/*/bioEntities/elements/")).then(function (r) {

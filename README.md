@@ -53,7 +53,17 @@ Main features:
     MINERVA's layout differs; set `HIDE_HOST_CHROME = false` at the top of
     `src/js/index.js` to disable it. Note that hiding this header also removes
     MINERVA's in-drawer refresh/close controls — the plugin can still be
-    closed and reopened from MINERVA's main **Plugins** menu.
+    closed and reopened from MINERVA's main **Plugins** menu. Every change the
+    plugin makes to MINERVA's own DOM (the hidden header, the positioned
+    `.tab-content`) is recorded and **restored when the plugin is unloaded**,
+    via an `onPluginUnload` listener, so closing the plugin collapses the
+    panel cleanly and never leaves a blank panel behind.
+
+-   **Full-height panel**: the plugin gives MINERVA's `.tab-content` drawer
+    `position: relative` so its mount element fills the panel exactly (the
+    same technique the MINERVA drug-reactions plugin uses); the table then
+    fills the remaining height and owns the single scrollbar, with no dead
+    space below.
 
 ------------------------------------------------------------------------
 
@@ -143,7 +153,7 @@ repository root as `plugin.js` for direct loading in MINERVA.
 
 -   **Plugin name**: DNT-IVB mapping
 
--   **Version**: 0.2
+-   **Version**: 0.3
 
 -   **Author**: Luiz Ladeira
 
