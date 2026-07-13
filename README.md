@@ -59,15 +59,11 @@ Main features:
     via an `onPluginUnload` listener, so closing the plugin collapses the
     panel cleanly and never leaves a blank panel behind.
 
--   **Full-height panel**: after the host header is hidden, MINERVA keeps the
-    drawer the same total height, leaving a blank strip below the plugin mount
-    that no height cascade can reach. The plugin therefore lifts its container
-    out of the flow (`position: fixed`), anchors it to where the plugin
-    content starts (tracked by a zero-height in-flow marker so it stays correct
-    after the header hide and on resize) and stretches it down to the bottom of
-    the viewport — overlaying the blank space. The table fills the remaining
-    height and owns the single scrollbar. The fixed geometry is reverted on
-    unload.
+-   **Full-height panel**: the plugin gives MINERVA's `.tab-content` drawer
+    `position: relative` so its mount element fills the panel exactly (the
+    same technique the MINERVA drug-reactions plugin uses); the table then
+    fills the remaining height and owns the single scrollbar, with no dead
+    space below.
 
 ------------------------------------------------------------------------
 

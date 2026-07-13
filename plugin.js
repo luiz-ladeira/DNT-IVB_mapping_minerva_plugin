@@ -362,81 +362,37 @@ function hideHostChrome(myEl) {
   }
 }
 
-// Small gap (px) left between the panel's bottom edge and the bottom of the
-// viewport, so the panel never sits flush against the window edge.
-var PANEL_BOTTOM_GAP = 4;
-
 /**
- * Make the panel fill MINERVA's plugin space with no dead gap below — using an
- * overlay strategy rather than trying to grow MINERVA's own boxes.
+ * Make the panel fill MINERVA's plugin space with no dead gap below.
  *
- * MINERVA gives each plugin a mount element with a fixed height. When we hide
- * the drawer header we reclaim space at the top, but MINERVA keeps the drawer
- * the same total height, so an equal blank strip appears BELOW the mount that
- * no height cascade on the mount can reach. Instead we lift our container out
- * of the flow with `position: fixed`, anchor it to where the plugin content
- * starts, and stretch it down to the bottom of the viewport — so it lies over
- * the blank space and fills it. The container's flex column + the table
- * wrapper's own scroll then use the full height.
+ * MINERVA absolutely-positions the plugin mount element inside its Bootstrap
+ * `.tab-content` drawer. Without a positioned `.tab-content`, the mount is
+ * sized against a further-out ancestor and overshoots, leaving blank space
+ * under the table. Giving `.tab-content` `position: relative` makes it the
+ * containing block, so the mount fills exactly the panel and our container's
+ * CSS `height: 100%` + flex column resolves against it. This is the same
+ * technique used by MINERVA's own drug-reactions plugin; flexbox then adapts
+ * on resize with no pixel measurement. The mutation is recorded and restored
+ * on unload. Best-effort and idempotent; never throws.
  *
- * Geometry is recomputed on scroll/resize (see renderUI). The container's
- * top/left/width are captured from the mount BEFORE it is taken out of flow,
- * and the horizontal box is re-read from the drawer (which stays in flow) on
- * every recompute so the panel tracks the drawer if the window is resized.
- * All mutations are recorded and restored on unload. Never throws.
- *
- * @param {HTMLElement} rootEl - the plugin's own container element (.dnt-container).
+ * @param {HTMLElement} rootEl - the plugin's own container element.
  */
 function fillPanelHeight(rootEl) {
   try {
+    // rootEl is .dnt-container; its parent is MINERVA's mount element.
     var mount = rootEl.parentElement || rootEl;
-
-    // The drawer box that stays IN THE FLOW and keeps its full width even
-    // after our container leaves the flow — we read left/width from it. (If we
-    // read width from the container or the mount once fixed, the mount
-    // collapses to width 0 and the panel becomes invisible.)
-    var drawer = $(mount).closest(".tab-content").get(0) || mount.parentElement || mount;
-
-    // A zero-height marker left IN THE FLOW at the plugin's start position, so
-    // we always know where the plugin content begins (survives the header-hide
-    // shift and window resizes) even though the container itself is fixed.
-    if (!renderUI._anchorEl) {
-      var a = document.createElement("div");
-      a.className = "dnt-anchor";
-      a.style.cssText = "height:0;margin:0;padding:0;border:0;width:100%;";
-      mount.insertBefore(a, mount.firstChild);
-      renderUI._anchorEl = a;
-      ["position", "top", "left", "width", "height", "zIndex"].forEach(function (p) {
-        return recordHostStyle(rootEl, p);
-      });
+    var tabContent = $(mount).closest(".tab-content").get(0);
+    if (tabContent) {
+      if (window.getComputedStyle(tabContent).position === "static") {
+        recordHostStyle(tabContent, "position");
+        tabContent.style.position = "relative";
+      }
+    } else {
+      // Fallback: no .tab-content found — at least give the mount a height so
+      // the container's height:100% has something to resolve against.
+      recordHostStyle(mount, "height");
+      mount.style.height = "100%";
     }
-    var top = renderUI._anchorEl.getBoundingClientRect().top;
-    var dr = drawer.getBoundingClientRect();
-    var left = dr.left;
-    var width = dr.width;
-    var height = window.innerHeight - top - PANEL_BOTTOM_GAP;
-
-    // Guard: if the geometry is implausible (drawer not laid out yet, absurd
-    // top/height), do NOT go fixed — leave the container in natural flow so the
-    // plugin always renders. A visible panel with a small gap beats a blank one.
-    if (width < 120 || height < 160 || top < 0 || !isFinite(top)) {
-      rootEl.style.position = "";
-      rootEl.style.top = "";
-      rootEl.style.left = "";
-      rootEl.style.width = "";
-      rootEl.style.height = "";
-      rootEl.style.zIndex = "";
-      return;
-    }
-
-    // Overlay: lift the panel out of the flow and stretch it from the plugin's
-    // start down to the bottom of the viewport, covering MINERVA's blank strip.
-    rootEl.style.position = "fixed";
-    rootEl.style.top = top + "px";
-    rootEl.style.left = left + "px";
-    rootEl.style.width = width + "px";
-    rootEl.style.height = height + "px";
-    rootEl.style.zIndex = "5";
   } catch (e) {
     console.warn("fillPanelHeight skipped:", e);
   }
@@ -715,16 +671,13 @@ function renderUI(container, sheet, elements) {
     _tick();
   }
 
-  // Overlay the panel across MINERVA's blank strip and size it to the viewport
-  // bottom. Re-run after layout settles (the header-hide shifts the anchor)
-  // and on window resize so the panel keeps tracking the drawer.
+  // Make the height:100% chain continuous up to MINERVA's scroll panel so the
+  // panel fills its space with no dead gap below. Re-run after layout settles
+  // and on window resize; flexbox does the adapting, so no pixel math.
   fillPanelHeight(myEl);
   setTimeout(function () {
     return fillPanelHeight(myEl);
   }, 300);
-  setTimeout(function () {
-    return fillPanelHeight(myEl);
-  }, 800);
   if (renderUI._resizeHandler) {
     window.removeEventListener("resize", renderUI._resizeHandler);
   }
@@ -762,12 +715,6 @@ function register() {
           window.removeEventListener("resize", renderUI._resizeHandler);
           renderUI._resizeHandler = null;
         }
-        // Remove the in-flow anchor marker and clear cached layout state so a
-        // re-open re-initialises the overlay geometry from scratch.
-        if (renderUI._anchorEl && renderUI._anchorEl.parentNode) {
-          renderUI._anchorEl.parentNode.removeChild(renderUI._anchorEl);
-        }
-        renderUI._anchorEl = null;
       });
     }
   } catch (e) {
