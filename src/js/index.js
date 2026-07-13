@@ -72,10 +72,6 @@ const HIGHLIGHT_COLOR = "#d6336c";
 // layout differs. Set to false to leave MINERVA's header untouched.
 const HIDE_HOST_CHROME = true;
 
-// Bottom margin (px) left below the panel when it is stretched to fill the
-// available height down to the bottom of the MINERVA plugin drawer.
-const PANEL_BOTTOM_GAP = 6;
-
 // ===== Utils =====
 function isEmptyToken(v) {
   return EMPTY_TOKENS.has(String(v || "").trim().toLowerCase());
@@ -295,54 +291,50 @@ function hideHostChrome(myEl) {
 }
 
 /**
- * Find the nearest ancestor that actually bounds the plugin's height — i.e.
- * MINERVA's scroll panel. That is the box whose bottom we should fill down
- * to. Falls back to null (caller then uses the viewport).
+ * Make the panel fill MINERVA's plugin space.
  *
- * @param {HTMLElement} el
- * @return {HTMLElement|null}
- */
-function findBoundingAncestor(el) {
-  let node = el.parentElement;
-  let hops = 0;
-  while (node && node !== document.body && hops < 12) {
-    const cs = window.getComputedStyle(node);
-    const scrolls = /(auto|scroll|overlay)/.test(cs.overflowY);
-    const rect = node.getBoundingClientRect();
-    // A real scroll panel has a bounded height and clips/scrolls its content.
-    if (scrolls && rect.height > 120 && rect.height < window.innerHeight + 1) {
-      return node;
-    }
-    node = node.parentElement;
-    hops += 1;
-  }
-  return null;
-}
-
-/**
- * Stretch the panel to fill the vertical space from its top down to the
- * bottom of MINERVA's scroll panel (or the viewport as a fallback), so there
- * is no dead space below the table and no oversize that would make an
- * ancestor scroll. The container itself never scrolls (overflow is hidden in
- * CSS); only the table wrapper does, so there is a single scrollbar.
+ * MINERVA hands each plugin a mount element inside Bootstrap `.tab-pane` /
+ * `.tab-content` wrappers that are `height: auto`. A plain `height: 100%` on
+ * our container therefore collapses (its parent has no resolved height),
+ * leaving dead space below. The fix is to make the `height: 100%` chain
+ * continuous: walk up from our container setting `height: 100%` on every
+ * content-sized ancestor until we reach the first ancestor that already has a
+ * bounded layout height (MINERVA's scroll panel). From there, the container's
+ * CSS `height: 100%` + flex column fills the panel and adapts on resize with
+ * no pixel measurement.
+ *
+ * Best-effort and idempotent; never throws.
  *
  * @param {HTMLElement} rootEl - the plugin's own container element.
  */
-function fitPanelHeight(rootEl) {
+function fillPanelHeight(rootEl) {
   try {
-    const rect = rootEl.getBoundingClientRect();
-    const ancestor = findBoundingAncestor(rootEl);
-    const bottom = ancestor
-      ? ancestor.getBoundingClientRect().bottom
-      : window.innerHeight;
-    const avail = bottom - rect.top - PANEL_BOTTOM_GAP;
-    if (avail > 160) {
-      rootEl.style.height = avail + "px";
-    } else {
-      rootEl.style.height = "100%";
+    let node = rootEl;
+    let hops = 0;
+    while (node && node !== document.body && hops < 14) {
+      node.style.height = "100%";
+      node.style.minHeight = "0";
+      node.style.boxSizing = "border-box";
+
+      const parent = node.parentElement;
+      if (!parent || parent === document.body) break;
+
+      const pcs = window.getComputedStyle(parent);
+      const prect = parent.getBoundingClientRect();
+      // Stop once the parent is a real bounded container: it clips/scrolls its
+      // overflow AND has a resolved height no taller than the viewport. That
+      // parent keeps its own height; our chain fills it exactly.
+      const boundedScroll =
+        /(auto|scroll|hidden|overlay)/.test(pcs.overflowY) &&
+        prect.height > 120 &&
+        prect.height <= window.innerHeight + 1;
+      if (boundedScroll) break;
+
+      node = parent;
+      hops += 1;
     }
   } catch (e) {
-    console.warn("fitPanelHeight skipped:", e);
+    console.warn("fillPanelHeight skipped:", e);
   }
 }
 
@@ -625,20 +617,21 @@ function renderUI(container, sheet, elements) {
     const tick = () => {
       const done = hideHostChrome(myEl);
       tries += 1;
-      fitPanelHeight(myEl);
+      fillPanelHeight(myEl);
       if (!done && tries < 8) setTimeout(tick, 250);
     };
     tick();
   }
 
-  // Fill the available height dynamically, and keep it in sync with the
-  // window size so the panel adapts when the screen/drawer is resized.
-  fitPanelHeight(myEl);
-  setTimeout(() => fitPanelHeight(myEl), 300);
+  // Make the height:100% chain continuous up to MINERVA's scroll panel so the
+  // panel fills its space with no dead gap below. Re-run after layout settles
+  // and on window resize; flexbox does the adapting, so no pixel math.
+  fillPanelHeight(myEl);
+  setTimeout(() => fillPanelHeight(myEl), 300);
   if (renderUI._resizeHandler) {
     window.removeEventListener("resize", renderUI._resizeHandler);
   }
-  renderUI._resizeHandler = () => fitPanelHeight(myEl);
+  renderUI._resizeHandler = () => fillPanelHeight(myEl);
   window.addEventListener("resize", renderUI._resizeHandler);
 
   // Initial state: highlight all mapped elements.
