@@ -62,7 +62,7 @@ require("./minervaAPI");
 
 // ===== Configuration =====
 var PLUGIN_NAME = "DNT-IVB mapping";
-var PLUGIN_VERSION = "0.3";
+var PLUGIN_VERSION = "0.4";
 var PLUGIN_URL = "https://raw.githubusercontent.com/luiz-ladeira/DNT-IVB_mapping_minerva_plugin/master/plugin.js";
 var SPREADSHEET_ID = "1bxuDsq2Wbf6ijzaOeDhW0u8qvhEnDqqFsVPDzrWhrbE";
 var SHEET_TAB = "data";
@@ -101,7 +101,7 @@ var HIGHLIGHT_COLOR = "#d6336c";
 // container). This is host chrome, not part of the plugin's element, so we
 // hide it via a best-effort DOM tweak that fails silently if MINERVA's
 // layout differs. Set to false to leave MINERVA's header untouched.
-var HIDE_HOST_CHROME = true;
+var HIDE_HOST_CHROME = false;
 
 // Record of every inline-style change we make to MINERVA's own DOM (host
 // chrome we hide, the .tab-content we position). Restored verbatim when the

@@ -47,23 +47,21 @@ Main features:
     bottom of the MINERVA plugin drawer and re-fits dynamically when the
     window/screen is resized. It scrolls internally (horizontal and vertical
     scrollbars) when the content is larger than the available space.
--   **Reclaimed header space**: on load the plugin hides MINERVA's own
-    plugin-drawer header ("Plugin: … / Open new plugin") to give its table
-    more room. This is a best-effort DOM tweak that fails silently if
-    MINERVA's layout differs; set `HIDE_HOST_CHROME = false` at the top of
-    `src/js/index.js` to disable it. Note that hiding this header also removes
-    MINERVA's in-drawer refresh/close controls — the plugin can still be
-    closed and reopened from MINERVA's main **Plugins** menu. Every change the
-    plugin makes to MINERVA's own DOM (the hidden header, the positioned
-    `.tab-content`) is recorded and **restored when the plugin is unloaded**,
-    via an `onPluginUnload` listener, so closing the plugin collapses the
-    panel cleanly and never leaves a blank panel behind.
+-   **MINERVA drawer header**: shown by default (`HIDE_HOST_CHROME = false`),
+    so the plugin sits in its natural slot below MINERVA's own
+    plugin-drawer header ("Plugin: … / Open new plugin") and stays aligned to
+    the bottom of the drawer. An optional space-reclaiming mode can hide that
+    header — set `HIDE_HOST_CHROME = true` at the top of `src/js/index.js`.
+    When enabled it is a best-effort DOM tweak that fails silently if MINERVA's
+    layout differs, and it also removes MINERVA's in-drawer refresh/close
+    controls (the plugin can still be closed/reopened from the main **Plugins**
+    menu). Any change the plugin makes to MINERVA's own DOM is recorded and
+    **restored when the plugin is unloaded**, via an `onPluginUnload` listener,
+    so closing the plugin never leaves a blank panel behind.
 
 -   **Full-height panel**: the plugin gives MINERVA's `.tab-content` drawer
-    `position: relative` so its mount element fills the panel exactly (the
-    same technique the MINERVA drug-reactions plugin uses); the table then
-    fills the remaining height and owns the single scrollbar, with no dead
-    space below.
+    `position: relative` so its container fills the available slot; the table
+    then fills the remaining height and owns the single scrollbar.
 
 ------------------------------------------------------------------------
 
@@ -153,7 +151,7 @@ repository root as `plugin.js` for direct loading in MINERVA.
 
 -   **Plugin name**: DNT-IVB mapping
 
--   **Version**: 0.3
+-   **Version**: 0.4
 
 -   **Author**: Luiz Ladeira
 

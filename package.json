@@ -1,6 +1,6 @@
 {
   "name": "dnt-ivb-mapping-minerva-plugin",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "MINERVA v18+ plugin mapping DNT In-Vitro Battery (IVB) assays to map elements",
   "main": "index.js",
   "scripts": {
