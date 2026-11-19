@@ -192,6 +192,8 @@ This project is dual-licensed:
 
 -   **Code (MIT)**: all source code, build configuration and the built `plugin.js` in this
     repository are released under the MIT License (see `LICENSE`).
+    The build configuration (`babel.config.js`, `jsconfig.json`) derives from the MINERVA
+    plugin starter kit by David Hoksza and Piotr Gawron (University of Luxembourg, MIT).
 -   **Data (CC BY 4.0)**: the DNT-IVB assay dataset displayed by the plugin is not stored in
     this repository; it is read at runtime from the public Google Sheet
     <https://docs.google.com/spreadsheets/d/1bxuDsq2Wbf6ijzaOeDhW0u8qvhEnDqqFsVPDzrWhrbE>

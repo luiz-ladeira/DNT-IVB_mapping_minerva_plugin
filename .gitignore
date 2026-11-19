@@ -2,3 +2,10 @@
 .Rhistory
 .RData
 .Ruserdata
+
+# build
+node_modules/
+dist/
+__tmp_minerva_plugin/
+src/css/styles.css
+src/css/styles.css.map
