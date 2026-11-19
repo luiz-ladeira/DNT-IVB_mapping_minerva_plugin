@@ -1,6 +1,6 @@
 /**
- * DNT-IVB mapping plugin for MINERVA (plugin API v18+; checked against
- * MINERVA 21.0.7 and 22.0.4).
+ * DNT-IVB mapping plugin for MINERVA (plugin API v18+; written for the
+ * MINERVA 21.0.7 and 22.0.4 plugin APIs).
  * Author: Luiz Ladeira. License: MIT (see LICENSE).
  *
  * Loads a Google Sheet describing Developmental Neurotoxicity (DNT)
@@ -275,14 +275,29 @@ function elementToPinData(element) {
   };
 }
 
+// Ids of the markers this plugin has added, so only our own tags are removed
+// (removeAllMarkers would also clear markers placed by other plugins).
+const ourMarkers = new Set();
+
 function deHighlightAll() {
-  try {
-    if (minerva && minerva.data && minerva.data.bioEntities) {
-      minerva.data.bioEntities.removeAllMarkers();
+  const bio = minerva && minerva.data && minerva.data.bioEntities;
+  if (!bio) return;
+  if (typeof bio.removeSingleMarker === "function") {
+    ourMarkers.forEach((id) => {
+      try {
+        bio.removeSingleMarker(id);
+      } catch (e) {
+        /* already gone */
+      }
+    });
+  } else if (typeof bio.removeAllMarkers === "function") {
+    try {
+      bio.removeAllMarkers();
+    } catch (e) {
+      console.error("removeAllMarkers failed", e);
     }
-  } catch (e) {
-    console.error("removeAllMarkers failed", e);
   }
+  ourMarkers.clear();
 }
 
 function highlightMultiple(elements) {
@@ -298,6 +313,7 @@ function highlightMultiple(elements) {
       const marker = elementToPinData(el);
       if (!isNaN(marker.x) && !isNaN(marker.y)) {
         minerva.data.bioEntities.addSingleMarker(marker);
+        ourMarkers.add(marker.id);
       }
     } catch (err) {
       console.error("Error highlighting", el, err);
@@ -446,7 +462,9 @@ function renderUI(container, sheet, elements) {
     if (isEmptyToken(rawId)) return null;
     const id = parseElementId(rawId);
     const el = id ? elementIndex[id] : null;
-    if (!el) console.warn(`DNT-IVB mapping: Element_id "${rawId}" does not resolve to a map element`);
+    if (!el && Object.keys(elementIndex).length > 0) {
+      console.warn(`DNT-IVB mapping: Element_id "${rawId}" does not resolve to a map element`);
+    }
     return el || null;
   });
 
@@ -637,7 +655,8 @@ function renderUI(container, sheet, elements) {
   $host.append($root);
 
   // ----- Behaviour -----
-  function applyFilters() {
+  // highlight=false updates the table and the tally without placing tags.
+  function applyFilters(highlight = true) {
     const q = String($search.val() || "").toLowerCase().trim();
     const active = [];
     let shown = 0;
@@ -673,7 +692,8 @@ function renderUI(container, sheet, elements) {
     });
     $count.find(".dnt-count-val").text(shown);
     $count.find(".dnt-mapped-val").text(shownMapped);
-    highlightMultiple(active);
+    if (highlight) highlightMultiple(active);
+    else deHighlightAll();
   }
 
   $search.on("input", applyFilters);
@@ -692,7 +712,8 @@ function renderUI(container, sheet, elements) {
         rec.$tr.find(".dnt-exp-icon").text("\u25B6");
       }
     });
-    applyFilters();
+    // Show every row again, but leave the map without tags.
+    applyFilters(false);
   });
 
   const myEl = $root.get(0);
@@ -728,26 +749,103 @@ function renderUI(container, sheet, elements) {
 
 // ===== Element loading =====
 /**
- * Load all map elements. MINERVA 22 exposes them through the plugin API
- * (minerva.elements.data.getAll); older servers (e.g. 21.x) only through the
- * legacy REST endpoint, which is kept as a fallback.
+ * Base URL of MINERVA's new API ("/minerva/new_api/"), with a trailing slash.
+ * MINERVA 22 exposes it as getApiUrls().baseNewApiUrl; on older servers it is
+ * derived from baseApiUrl ("/minerva/api" -> "/minerva/new_api/").
+ */
+function newApiBase() {
+  const urls = (minerva.project && minerva.project.data && minerva.project.data.getApiUrls
+    ? minerva.project.data.getApiUrls()
+    : {}) || {};
+  let base = urls.baseNewApiUrl;
+  if (!base && urls.baseApiUrl) base = String(urls.baseApiUrl).replace(/\/api\/?$/, "/new_api/");
+  if (!base) return null;
+  return String(base).endsWith("/") ? String(base) : String(base) + "/";
+}
+
+async function getJson(url) {
+  const resp = await fetch(url, {
+    credentials: "same-origin",
+    signal: lifecycle.abort ? lifecycle.abort.signal : undefined,
+  });
+  if (!resp.ok) {
+    const err = new Error(`MINERVA request failed: ${resp.status} ${resp.statusText} (${url})`);
+    err.status = resp.status;
+    throw err;
+  }
+  return resp.json();
+}
+
+/** All pages of a paginated new-API list ({ content, totalPages, number }). */
+async function getAllPages(url) {
+  const out = [];
+  const sep = url.indexOf("?") === -1 ? "?" : "&";
+  for (let page = 0; page < 1000; page += 1) {
+    const data = await getJson(`${url}${sep}size=10000&page=${page}`);
+    const content = Array.isArray(data) ? data : (data && data.content) || [];
+    out.push(...content);
+    const total = data && typeof data.totalPages === "number" ? data.totalPages : 1;
+    if (Array.isArray(data) || page + 1 >= total) break;
+  }
+  return out;
+}
+
+/**
+ * Elements of every map (main map and submaps) of the project through the new
+ * API. MINERVA 22 names the route "bio_entities", MINERVA 21 "bioEntities";
+ * the first one that answers is used for all maps.
+ */
+async function loadElementsNewApi(projectId) {
+  const base = newApiBase();
+  if (!base) throw new Error("MINERVA API URL not available");
+  const proj = `${base}projects/${encodeURIComponent(projectId)}`;
+  const maps = await getAllPages(`${proj}/maps/`);
+  const routes = ["bio_entities", "bioEntities"];
+  let route = null;
+  const all = [];
+  for (const map of maps) {
+    if (!map || map.id == null) continue;
+    let els = null;
+    for (const r of route ? [route] : routes) {
+      try {
+        els = await getAllPages(`${proj}/maps/${map.id}/${r}/elements/`);
+        route = r;
+        break;
+      } catch (e) {
+        if (e.status !== 404 || r === routes[routes.length - 1]) throw e;
+      }
+    }
+    // The new API leaves "model" empty on some versions; the map id is known.
+    (els || []).forEach((el) => {
+      if (el && el.model == null && el.map == null) el.map = map.id;
+      all.push(el);
+    });
+  }
+  return all;
+}
+
+/**
+ * Load all map elements: minerva.elements.data.getAll() when the plugin API
+ * provides it (MINERVA 22), otherwise the new REST API (MINERVA 21). The
+ * deprecated /api/.../bioEntities/elements/ endpoint is not used.
  */
 async function loadElements() {
+  const projectId =
+    minerva.project && minerva.project.data && minerva.project.data.getProjectId
+      ? minerva.project.data.getProjectId()
+      : undefined;
+  // No project open (e.g. the plugin is run by the admin registration form):
+  // nothing to map, and no request is made.
+  if (!projectId) return [];
   try {
     if (minerva.elements && minerva.elements.data && typeof minerva.elements.data.getAll === "function") {
       const els = await minerva.elements.data.getAll();
       if (Array.isArray(els) && els.length > 0) return els;
     }
   } catch (e) {
-    console.warn("minerva.elements.data.getAll failed, using REST fallback:", e);
+    console.warn("minerva.elements.data.getAll failed, using the MINERVA new API:", e);
   }
-  const baseUrl = minerva.project.data.getApiUrls().baseApiUrl;
-  const projectId = minerva.project.data.getProjectId();
-  const resp = await fetch(`${baseUrl}/projects/${projectId}/models/*/bioEntities/elements/`, {
-    signal: lifecycle.abort ? lifecycle.abort.signal : undefined,
-  });
-  if (!resp.ok) throw new Error(`MINERVA elements fetch failed: ${resp.status} ${resp.statusText}`);
-  return resp.json();
+  return loadElementsNewApi(projectId);
 }
 
 // ===== Registration =====

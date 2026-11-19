@@ -1,12 +1,8 @@
 {
   "name": "dnt-ivb-mapping-minerva-plugin",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "MINERVA plugin mapping Developmental Neurotoxicity In-Vitro Battery (DNT-IVB) assays to map elements",
   "author": "Luiz Ladeira",
-  "contributors": [
-    "Luiz Ladeira",
-    "Hesam Korki"
-  ],
   "license": "MIT",
   "repository": {
     "type": "git",

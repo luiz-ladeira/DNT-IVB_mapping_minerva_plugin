@@ -6,8 +6,8 @@ date: "2026_07_13"
 
 # Introduction
 
-The **DNT-IVB mapping Plugin** is an extension for **MINERVA** (plugin API v18 or higher; checked against
-MINERVA 21.0.7 and 22.0.4).
+The **DNT-IVB mapping Plugin** is an extension for **MINERVA** (plugin API v18 or higher; written for the
+MINERVA 21.0.7 and 22.0.4 plugin APIs).
 It loads a Google Sheet cataloguing **Developmental Neurotoxicity (DNT)
 In-Vitro Battery (IVB)** assays and their mapping to the elements of the
 displayed MINERVA map. Each assay is anchored to a map element through the
@@ -69,10 +69,11 @@ Main features:
 
 The plugin relies on:
 
--   **MINERVA plugin API (v18+)**. Map elements are read with
-    `minerva.elements.data.getAll()` on MINERVA 22, with a fallback to the
-    REST endpoint `/projects/{id}/models/*/bioEntities/elements/` on older
-    servers (e.g. 21.x).
+-   **MINERVA plugin API (v18+)**. Map elements are read with `minerva.elements.data.getAll()`
+    on MINERVA 22; otherwise from MINERVA's new API, per map:
+    `new_api/projects/{id}/maps/{mapId}/bio_entities/elements/` (22) or
+    `.../bioEntities/elements/` (21). The deprecated `api/.../models/*/bioEntities/elements/`
+    endpoint is not used.
 -   **Google Visualization API (gviz)** keyless JSON export of the public sheet
 -   **jQuery** (bundled)
 -   Custom CSS styles (`src/css/styles.scss`, compiled and bundled into
@@ -169,7 +170,7 @@ repository root as `plugin.js` for direct loading in MINERVA.
 
 -   **Plugin name**: DNT-IVB mapping
 
--   **Version**: 0.5.0 (see `CHANGELOG.md`)
+-   **Version**: 0.5.1 (see `CHANGELOG.md`)
 
 -   **Author**: Luiz Ladeira
 
@@ -191,9 +192,8 @@ repository root as `plugin.js` for direct loading in MINERVA.
 This project is dual-licensed:
 
 -   **Code (MIT)**: all source code, build configuration and the built `plugin.js` in this
-    repository are released under the MIT License (see `LICENSE`).
-    The build configuration (`babel.config.js`, `jsconfig.json`) derives from the MINERVA
-    plugin starter kit by David Hoksza and Piotr Gawron (University of Luxembourg, MIT).
+    repository are released under the MIT License, Copyright (c) 2026 Luiz Ladeira (see
+    `LICENSE`).
 -   **Data (CC BY 4.0)**: the DNT-IVB assay dataset displayed by the plugin is not stored in
     this repository; it is read at runtime from the public Google Sheet
     <https://docs.google.com/spreadsheets/d/1bxuDsq2Wbf6ijzaOeDhW0u8qvhEnDqqFsVPDzrWhrbE>
